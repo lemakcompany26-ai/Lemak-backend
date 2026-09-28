@@ -1,7 +1,15 @@
-require('dotenv').config();
+app.use(express.static('public')); // serves admin.html
+
+// Admin key protection middleware
+const ADMIN_KEY = process.env.ADMIN_KEY || 'lemak2024';
+function adminAuth(req,res,next){
+  if(req.headers['x-admin-key']===ADMIN_KEY || req.query.key===ADMIN_KEY) next();
+  else res.status(401).json({error:'Unauthorized - wrong admin key'});
+}
+app.use('/api/admin', adminAuth);require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
+const helmet = require('helmet'); 
 const rateLimit = require('express-rate-limit');
 const axios = require('axios');
 const { createClient } = require('@supabase/supabase-js');
