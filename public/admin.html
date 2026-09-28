@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lemak Admin - 100K</title>
+<style>
+body{font-family:system-ui;background:#0a0a0a;color:#fff;padding:15px;margin:0}
+.card{background:#1a1a1a;border-radius:12px;padding:16px;margin-bottom:12px;border:1px solid #333}
+input{width:60px;padding:8px;border-radius:8px;border:none;background:#2a2a2a;color:#fff;text-align:center;font-weight:bold}
+button{padding:10px 16px;border-radius:8px;border:none;font-weight:bold;cursor:pointer}
+.btn-green{background:#00ff88;color:#000}
+.btn-blue{background:#0ea5e9;color:#fff}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+h2{margin:10px 0}
+.live{color:#00ff88}
+</style>
+</head>
+<body>
+
+<h2>🔐 Lemak Admin V2</h2>
+<div class="card">
+  <input type="password" id="adminKey" placeholder="Admin Key" style="width:90%">
+  <p style="font-size:12px;color:#888">Set ADMIN_KEY in Render env, default: lemak2024</p>
+</div>
+
+<div class="card">
+  <h3>💰 Profit Markup (%)</h3>
+  <p style="font-size:12px;color:#aaa">Live Price + Markup = User Price. Your profit = Markup.</p>
+  <div id="markupForm" class="grid"></div>
+  <button class="btn-green" style="width:100%;margin-top:12px" onclick="saveMarkup()">SAVE MARKUP</button>
+  <p id="saveMsg"></p>
+</div>
+
+<div class="card">
+  <h3>📊 Live Price Preview (What users see)</h3>
+  <button class="btn-blue" onclick="loadLive()">REFRESH LIVE PRICES</button>
+  <pre id="liveOut" style="white-space:pre-wrap;font-size:12px;max-height:300px;overflow:auto"></pre>
+</div>
+
+<div class="card">
+  <h3>📧 Test Email</h3>
+  <input id="testEmail" placeholder="email@gmail.com" style="width:70%">
+  <button class="btn-blue" onclick="testEmail()">Send OTP</button>
+  <p id="emailMsg"></p>
+</div>
+
+<div class="card">
+  <h3>🧪 Backend Health</h3>
+  <div id="health"></div>
+  <button class="btn-blue" onclick="checkHealth()">Check All Endpoints</button>
+</div>
+
+<script>
+const API = window.location.origin;
+let currentMarkup = {};
+
+async function api(path, method='GET', body){
+  const key = document.getElementById('adminKey').value || 'lemak2024';
+  const res = await fetch(API+path, { method, headers:{'Content-Type':'application/json','x-admin-key':key}, body: body?JSON.stringify(body):null });
+  return res.json();
+}
+
+async function loadMarkup(){
+  const data = await api('/api/admin/markup');
+  currentMarkup = data.markup || { airtime:2,data:10,electricity:1,cable:1,betting:2,education:3,epin:2,broadband:5,otp:15,growth:20 };
+  const form = document.getElementById('markupForm');
+  form.innerHTML = Object.entries(currentMarkup).map(([k,v])=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;background:#222;padding:8px;border-radius:8px">
+      <span>${k.toUpperCase()}</span><span><input id="m_${k}" value="${v}"> %</span>
+    </div>
+  `).join('');
+}
+async function saveMarkup(){
+  const newM = {};
+  Object.keys(currentMarkup).forEach(k=>{ newM[k]=Number(document.getElementById('m_'+k).value); });
+  const r = await api('/api/admin/markup','POST', newM);
+  document.getElementById('saveMsg').innerText = '✅ Saved! '+JSON.stringify(r.new_markup);
+  loadLive();
+}
+async function loadLive(){
+  document.getElementById('liveOut').innerText = 'Loading live...';
+  const r = await api('/api/services/data/plans/live');
+  document.getElementById('liveOut').innerText = JSON.stringify(r,null,2);
+}
+async function testEmail(){
+  const email = document.getElementById('testEmail').value;
+  if(!email) return alert('Enter email');
+  document.getElementById('emailMsg').innerText = 'Sending...';
+  const r = await api('/api/auth/email-otp/send','POST',{email});
+  document.getElementById('emailMsg').innerText = JSON.stringify(r);
+}
+async function checkHealth(){
+  const endpoints = ['/','/health','/api/services/data/plans/live','/api/admin/markup','/api/services/otp/countries'];
+  let out='';
+  for(let e of endpoints){ try{ const r=await fetch(API+e); out+=`✅ ${e} - ${r.status}\n`; }catch{ out+=`❌ ${e} - DOWN\n`; } }
+  document.getElementById('health').innerText = out;
+}
+loadMarkup(); checkHealth();
+</script>
+</body>
+  </html>
